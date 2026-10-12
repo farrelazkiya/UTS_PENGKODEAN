@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Jurnal Voucher Kas Keluar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="min-h-screen bg-slate-50 p-6 font-sans text-slate-800 antialiased">
+
+    <!-- Main Container -->
+    <div id="app" class="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <!-- Top bar / Title -->
+        <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-white">
+                <i data-lucide="file-text" class="w-6 h-6"></i>
+                <h1 class="text-xl font-semibold">Form Jurnal Voucher Kas Keluar</h1>
+            </div>
+            
+            <!-- Badge Indikator Visual -->
+            <div id="statusBadge" class="px-4 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold shadow-sm transition-colors bg-slate-200 text-slate-500">
+                <span>PENDING ENTRY</span>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <!-- Section: Header Jurnal -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Tanggal Transaksi</label>
+                    <input 
+                        type="date" 
+                        id="headerDate"
+                        oninput="handleHeaderChange('date', this.value)"
+                        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">No. Referensi</label>
+                    <input 
+                        type="text" 
+                        id="headerRef"
+                        oninput="handleHeaderChange('reference', this.value)"
+                        placeholder="Misal: CDJ-2023-10-001"
+                        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Deskripsi Transaksi</label>
+                    <input 
+                        type="text" 
+                        id="headerDesc"
+                        oninput="handleHeaderChange('description', this.value)"
+                        placeholder="Contoh: Pembayaran biaya operasional bulan Oktober"
+                        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    />
+                </div>
+            </div>
+
+            <!-- Section: Tabel Journal Lines -->
+            <div class="mb-4 overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 text-sm border-y border-slate-200">
+                            <th class="py-3 px-4 font-semibold w-12 text-center">#</th>
+                            <th class="py-3 px-4 font-semibold">Nama Akun</th>
+                            <th class="py-3 px-4 font-semibold w-48 text-right">Debit (Rp)</th>
+                            <th class="py-3 px-4 font-semibold w-48 text-right">Kredit (Rp)</th>
+                            <th class="py-3 px-4 font-semibold w-16 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="linesTableBody">
+                        <!-- Dynamic rows injected via JS -->
+                    </tbody>
+                    
+                    <!-- Footer Table for Totals -->
+                    <tfoot>
+                        <tr class="bg-slate-50 border-t border-slate-300 text-slate-800">
+                            <td colspan="2" class="py-4 px-4 font-bold text-right text-sm">TOTAL</td>
+                            <td id="totalDebitCell" class="py-4 px-4 font-bold text-right tracking-tight">Rp 0</td>
+                            <td id="totalCreditCell" class="py-4 px-4 font-bold text-right tracking-tight">Rp 0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="flex justify-between items-center mt-6">
+                <button 
+                    onclick="handleAddRow()"
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                >
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    Tambah Baris
+                </button>
+
+                <button 
+                    id="submitBtn"
+                    disabled
+                    class="flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-md shadow-sm transition-all bg-slate-200 text-slate-400 cursor-not-allowed"
+                >
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Simpan Jurnal
+                </button>
+            </div>
+            
+            <p id="submitHelperText" class="text-right text-xs text-slate-400 mt-2">
+                * Tombol Simpan hanya aktif jika jurnal lebih dari 1 baris, posisi Debit = Kredit (Balanced), dan total bukan 0.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // State management mirroring the React component
+        let state = {
+            header: {
+                date: '',
+                reference: '',
+                description: ''
+            },
+            lines: [
+                { id: 1, accountName: '', debit: '', credit: '' },
+                { id: 2, accountName: '', debit: '', credit: '' }
+            ]
+        };
+
+        // Format angka ke format mata uang (Rupiah) sederhana
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
+        }
+
+        function handleHeaderChange(field, value) {
+            state.header[field] = value;
+        }
+
+        function handleLineChange(id, field, value) {
+            // Validasi agar input angka tidak bernilai negatif
+            if ((field === 'debit' || field === 'credit') && value < 0) return;
+            
+            state.lines = state.lines.map(line => {
+                if (line.id === id) {
+                    return { ...line, [field]: value };
+                }
+                return line;
+            });
+            render();
+        }
+
+        function handleAddRow() {
+            const newId = state.lines.length > 0 ? Math.max(...state.lines.map(l => l.id)) + 1 : 1;
+            state.lines.push({ id: newId, accountName: '', debit: '', credit: '' });
+            render();
+        }
+
+        function handleRemoveRow(id) {
+            state.lines = state.lines.filter(line => line.id !== id);
+            render();
+        }
+
+        function render() {
+            // 1. Calculate Totals
+            let totalDebit = 0;
+            let totalCredit = 0;
+
+            state.lines.forEach(line => {
+                totalDebit += parseFloat(line.debit) || 0;
+                totalCredit += parseFloat(line.credit) || 0;
+            });
+
+            const isBalanced = totalDebit === totalCredit;
+            const isSubmitValid = state.lines.length > 1 && isBalanced && totalDebit > 0;
+
+            // 2. Update Badge
+            const badge = document.getElementById('statusBadge');
+            if (totalDebit === 0 && totalCredit === 0) {
+                badge.className = "px-4 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold shadow-sm transition-colors bg-slate-200 text-slate-500";
+                badge.innerHTML = "<span>PENDING ENTRY</span>";
+            } else if (isBalanced) {
+                badge.className = "px-4 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold shadow-sm transition-colors bg-emerald-500 text-white";
+                badge.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i> <span>BALANCED</span>';
+            } else {
+                badge.className = "px-4 py-1.5 rounded-full flex items-center gap-2 text-sm font-bold shadow-sm transition-colors bg-red-500 text-white";
+                badge.innerHTML = '<i data-lucide="alert-triangle" class="w-4 h-4"></i> <span>UNBALANCED</span>';
+            }
+
+            // 3. Render Table Rows
+            const tbody = document.getElementById('linesTableBody');
+            tbody.innerHTML = state.lines.map((line, index) => {
+                const isDebitFilled = parseFloat(line.credit) > 0;
+                const isCreditFilled = parseFloat(line.debit) > 0;
+
+                return `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                        <td class="py-2 px-4 text-center text-slate-400 text-sm">${index + 1}</td>
+                        <td class="py-2 px-4">
+                            <input 
+                                type="text"
+                                placeholder="Cari / Ketik Nama Akun..."
+                                value="${line.accountName}"
+                                oninput="handleLineChange(${line.id}, 'accountName', this.value)"
+                                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            />
+                        </td>
+                        <td class="py-2 px-4">
+                            <input 
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                value="${line.debit}"
+                                oninput="handleLineChange(${line.id}, 'debit', this.value)"
+                                ${isDebitFilled ? 'disabled' : ''}
+                                class="w-full text-right rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400 bg-white"
+                            />
+                        </td>
+                        <td class="py-2 px-4">
+                            <input 
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                value="${line.credit}"
+                                oninput="handleLineChange(${line.id}, 'credit', this.value)"
+                                ${isCreditFilled ? 'disabled' : ''}
+                                class="w-full text-right rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400 bg-white"
+                            />
+                        </td>
+                        <td class="py-2 px-4 text-center">
+                            <button 
+                                onclick="handleRemoveRow(${line.id})"
+                                class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                title="Hapus Baris"
+                            >
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 4. Update Footer Totals
+            document.getElementById('totalDebitCell').innerText = formatCurrency(totalDebit);
+            document.getElementById('totalCreditCell').innerText = formatCurrency(totalCredit);
+
+            // 5. Update Submit Button State
+            const submitBtn = document.getElementById('submitBtn');
+            if (isSubmitValid) {
+                submitBtn.disabled = false;
+                submitBtn.className = "flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-md shadow-sm transition-all bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer";
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.className = "flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-md shadow-sm transition-all bg-slate-200 text-slate-400 cursor-not-allowed";
+            }
+
+            // Re-initialize Lucide icons for dynamically created elements
+            lucide.createIcons();
+        }
+
+        // Initial paint
+        render();
+    </script>
+</body>
+</html>
